@@ -119,11 +119,11 @@ class UCIEngine(EngineWrapper):
 
 
     def print_stats(self):
-        self.print_handler_stats(self.engine.info_handlers[0].info, ["string", "depth", "nps", "nodes", "score"])
+        self.print_handler_stats(self.engine.info_handlers[0].info, ["score"])
 
 
     def get_stats(self):
-        return self.get_handler_stats(self.engine.info_handlers[0].info, ["depth", "nps", "nodes", "score"])
+        return self.get_handler_stats(self.engine.info_handlers[0].info, ["score"])
 
 
 class XBoardEngine(EngineWrapper):
@@ -203,10 +203,10 @@ class XBoardEngine(EngineWrapper):
         return self.search(board, wtime, btime, winc, binc), None
 
     def print_stats(self):
-        self.print_handler_stats(self.engine.post_handlers[0].post, ["depth", "nodes", "score"])
+        self.print_handler_stats(self.engine.post_handlers[0].post, ["score"])
 
     def get_stats(self):
-        return self.get_handler_stats(self.engine.post_handlers[0].post, ["depth", "nodes", "score"])
+        return self.get_handler_stats(self.engine.post_handlers[0].post, ["score"])
 
 
     def name(self):

@@ -109,3 +109,14 @@ class Lichess():
     def set_user_agent(self, username):
         self.header.update({"User-Agent": "lichess-bot/{} user:{}".format(self.version, username)})
         self.session.headers.update(self.header)
+
+    @backoff.on_exception(backoff.constant,
+        (RemoteDisconnected, ConnectionError, ProtocolError, HTTPError, ReadTimeout),
+        max_time=1,
+	interval=0.1,
+        giveup=is_final)
+    def api_query(self, path):
+        response = requests.get(path, timeout=1)
+        response.raise_for_status()
+        return response.text.rstrip('\x00')
+

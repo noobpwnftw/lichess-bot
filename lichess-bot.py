@@ -161,7 +161,7 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
     if len(board.move_stack) < 2:
         while not terminated:
             try:
-                if not polyglot_cfg.get("enabled") or not play_first_book_move(game, engine, board, li, book_cfg):
+                if not play_first_book_move(game, engine, board, li, book_cfg):
                     if not play_first_move(game, engine, board, li):
                         deferredFirstMove = True
                 break
@@ -171,7 +171,6 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
     else:
         moves = game.state["moves"].split()
         if not board.is_game_over() and is_engine_move(game, moves):
-            book_move = None
             best_move = None
             ponder_move = None
             wtime = game.state["wtime"]
@@ -180,8 +179,7 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
                 wtime = max(0, wtime - move_overhead)
             else:
                 btime = max(0, btime - move_overhead)
-            if polyglot_cfg.get("enabled") and len(moves) <= polyglot_cfg.get("max_depth", 8) * 2 - 1:
-                book_move = get_book_move(board, book_cfg)
+            book_move = get_book_move(board, book_cfg)
             if book_move == None:
                 logger.info("Searching for wtime {} btime {}".format(wtime, btime))
                 best_move , ponder_move = engine.search_with_ponder(board, wtime, btime, game.state["winc"], game.state["binc"])
@@ -220,7 +218,6 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
                         sleep = min(5, delay * accel)
                         time.sleep(sleep)
 
-                    book_move = None
                     best_move = None
                     ponder_move = None
                     if not ( ponder_thread is None ):
@@ -245,8 +242,7 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
                         btime = max(0, btime - move_overhead)
 
                     if not deferredFirstMove:
-                        if polyglot_cfg.get("enabled") and len(moves) <= polyglot_cfg.get("max_depth", 8) * 2 - 1:
-                            book_move = get_book_move(board, book_cfg)
+                        book_move = get_book_move(board, book_cfg)
                         if best_move == None:
                             if book_move == None:
                                 logger.info("Searching for wtime {} btime {}".format(wtime, btime))
@@ -269,7 +265,7 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
                             ponder_thread.start()
                         li.make_move(game.id, best_move)
                     else:
-                        if not polyglot_cfg.get("enabled") or not play_first_book_move(game, engine, board, li, book_cfg):
+                        if not play_first_book_move(game, engine, board, li, book_cfg):
                             play_first_move(game, engine, board, li)
                         deferredFirstMove = False
                 if board.turn == chess.WHITE:
@@ -335,28 +331,18 @@ def play_first_book_move(game, engine, board, li, config):
 
 def get_book_move(board, config):
     if board.uci_variant == "chess":
-        book = config["standard"]
-    else:
-        if config.get("{}".format(board.uci_variant)):
-            book = config["{}".format(board.uci_variant)]
-        else:
-            return None
-
-    with chess.polyglot.open_reader(book) as reader:
+        move = None
         try:
-            selection = config.get("selection", "weighted_random")
-            if selection == "weighted_random":
-                move = reader.weighted_choice(board).move()
-            elif selection == "uniform_random":
-                move = reader.choice(board, minimum_weight=config.get("min_weight", 1)).move()
-            elif selection == "best_move":
-                move = reader.find(board, minimum_weight=config.get("min_weight", 1)).move()
-        except IndexError:
-            # python-chess raises "IndexError" if no entries found
-            move = None
+            result = li.api_query("http://www.chessdb.cn/cdb.php?action=query&board=" + board.fen())
+            if str.find(result, "move:") != -1:
+                move = result[5:]
+        except:
+            pass
+    else:
+        return None
 
     if move is not None:
-        logger.info("Got move {} from book {}".format(move, book))
+        logger.info("Got move {} from book".format(move))
 
     return move
 
