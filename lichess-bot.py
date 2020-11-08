@@ -87,6 +87,8 @@ def start(li, user_profile, engine_factory, config):
                 logger.info("+++ Process Free. Total Queued: {}. Total Used: {}".format(queued_processes, busy_processes))
             elif event["type"] == "challenge":
                 chlng = model.Challenge(event["challenge"])
+                if chlng.challenger["name"] == user_profile["username"]:
+                    continue
                 if chlng.is_supported(challenge_config):
                     challenge_queue.append(chlng)
                     if (challenge_config.get("sort_by", "best") == "best"):
@@ -143,7 +145,7 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
     engine_cfg = config["engine"]
     is_uci = engine_cfg["protocol"] == "uci"
     is_uci_ponder = is_uci and engine_cfg.get("uci_ponder", False)
-    move_overhead = config.get("move_overhead", 1000)
+    move_overhead = config.get("move_overhead", 2000)
     polyglot_cfg = engine_cfg.get("polyglot", {})
     book_cfg = polyglot_cfg.get("book", {})
 
@@ -152,7 +154,7 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
 
     ponder_uci = None
     def ponder_thread_func(game, engine, board, wtime, btime, winc, binc):
-        global ponder_results        
+        global ponder_results
         best_move , ponder_move = engine.search_with_ponder(board, wtime, btime, winc, binc, True)
         ponder_results[game.id] = ( best_move , ponder_move )
 
@@ -170,7 +172,7 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
                     break
     else:
         moves = game.state["moves"].split()
-        if not board.is_game_over() and is_engine_move(game, moves):
+        if not is_game_over(game) and is_engine_move(game, moves):
             best_move = None
             ponder_move = None
             wtime = game.state["wtime"]
@@ -211,7 +213,7 @@ def play_game(li, game_id, control_queue, engine_factory, user_profile, config, 
                 game.state = upd
                 moves = upd["moves"].split()
                 board = update_board(board, moves[-1])
-                if not board.is_game_over() and is_engine_move(game, moves):
+                if not is_game_over(game) and is_engine_move(game, moves):
                     if config.get("fake_think_time") and len(moves) > 9:
                         delay = min(game.clock_initial, game.my_remaining_seconds()) * 0.015
                         accel = 1 - max(0, min(100, len(moves) - 20)) / 150
@@ -368,6 +370,10 @@ def is_white_to_move(game, moves):
 
 def is_engine_move(game, moves):
     return game.is_white == is_white_to_move(game, moves)
+
+
+def is_game_over(game):
+    return game.state["status"] != "started"
 
 
 def update_board(board, move):
